@@ -53,6 +53,9 @@ export const useCartStore = create<CartStore>()(
 
       totalCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
     }),
-    { name: 'modurang-cart' }
+    {
+      name: 'modurang-cart',
+      skipHydration: true,
+    }
   )
 );
