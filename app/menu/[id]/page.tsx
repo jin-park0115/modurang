@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useCartStore } from '@/lib/store';
 import type { Menu, CartOptionItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, ShoppingCart } from 'lucide-react';
 
 function formatPrice(price: number) {
   return price.toLocaleString('ko-KR') + '원';
@@ -16,11 +16,14 @@ export default function MenuDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
+  const totalCount = useCartStore((s) => s.totalCount());
 
   const [menu, setMenu] = useState<Menu | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({});
+  const [added, setAdded] = useState(false);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     api.getMenu(id).then((m) => {
@@ -28,6 +31,16 @@ export default function MenuDetailPage() {
       setLoading(false);
     });
   }, [id]);
+
+  // 3초 후 자동 닫힘
+  useEffect(() => {
+    if (added) {
+      dismissTimer.current = setTimeout(() => setAdded(false), 3000);
+    }
+    return () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    };
+  }, [added]);
 
   if (loading) {
     return <div className="flex h-48 items-center justify-center text-gray-400">로딩 중...</div>;
@@ -61,11 +74,7 @@ export default function MenuDetailPage() {
   function calcTotal() {
     const optionExtra = optionGroups
       .flatMap((g) => g.items)
-      .filter((oi) =>
-        Object.values(selectedOptions)
-          .flat()
-          .includes(oi.id)
-      )
+      .filter((oi) => Object.values(selectedOptions).flat().includes(oi.id))
       .reduce((sum, oi) => sum + oi.extraPrice, 0);
     return (menu!.price + optionExtra) * quantity;
   }
@@ -93,7 +102,11 @@ export default function MenuDetailPage() {
       quantity,
       selectedOptions: cartOptions,
     });
-    router.push('/cart');
+
+    // 선택 초기화 후 확인 바 표시
+    setQuantity(1);
+    setSelectedOptions({});
+    setAdded(true);
   }
 
   return (
@@ -111,12 +124,11 @@ export default function MenuDetailPage() {
           <div className="border-b px-5 py-3">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-gray-900">{group.name}</span>
-              {group.required && (
+              {group.required ? (
                 <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
                   필수
                 </span>
-              )}
-              {!group.required && (
+              ) : (
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
                   최대 {group.maxSelect}개
                 </span>
@@ -177,16 +189,51 @@ export default function MenuDetailPage() {
         </div>
       </div>
 
-      {/* 담기 버튼 고정 */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
-        <div className="mx-auto max-w-lg">
-          <Button
-            onClick={handleAddToCart}
-            disabled={!isRequiredGroupsMet()}
-            className="h-12 w-full rounded-xl bg-red-600 text-base font-bold hover:bg-red-700 disabled:opacity-40"
-          >
-            {formatPrice(calcTotal())} 장바구니 담기
-          </Button>
+      {/* 하단 고정 영역 */}
+      <div className="fixed bottom-0 left-0 right-0">
+        {/* 담기 완료 확인 바 */}
+        <div
+          className={`transition-all duration-300 ${
+            added ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
+          }`}
+        >
+          <div className="border-t bg-green-50 px-4 py-3">
+            <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-green-700">
+                <ShoppingCart className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  장바구니에 담겼어요! ({totalCount}개)
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAdded(false)}
+                  className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50"
+                >
+                  계속 담기
+                </button>
+                <button
+                  onClick={() => router.push('/cart')}
+                  className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700"
+                >
+                  장바구니 보기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 담기 버튼 */}
+        <div className="border-t bg-white p-4">
+          <div className="mx-auto max-w-lg">
+            <Button
+              onClick={handleAddToCart}
+              disabled={!isRequiredGroupsMet()}
+              className="h-12 w-full rounded-xl bg-red-600 text-base font-bold hover:bg-red-700 disabled:opacity-40"
+            >
+              {formatPrice(calcTotal())} 장바구니 담기
+            </Button>
+          </div>
         </div>
       </div>
     </div>
