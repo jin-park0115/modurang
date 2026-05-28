@@ -1,10 +1,10 @@
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaClient } from './generated/prisma/client';
 
-const dbUrl = process.env.DATABASE_URL ?? 'file:./dev.db';
-
 function createPrisma() {
-  const adapter = new PrismaLibSql({ url: dbUrl });
+  const url = process.env.DATABASE_URL ?? 'file:./dev.db';
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  const adapter = new PrismaLibSql({ url, authToken });
   return new PrismaClient({ adapter } as never);
 }
 
