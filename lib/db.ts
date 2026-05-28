@@ -2,7 +2,9 @@ import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaClient } from './generated/prisma/client';
 
 function createPrisma() {
-  const url = process.env.DATABASE_URL ?? 'file:./dev.db';
+  const raw = process.env.DATABASE_URL ?? 'file:./dev.db';
+  // Vercel 서버리스에서 WebSocket 연결 불가 → libsql:// → https:// 로 변환
+  const url = raw.startsWith('libsql://') ? raw.replace('libsql://', 'https://') : raw;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   const adapter = new PrismaLibSql({ url, authToken });
   return new PrismaClient({ adapter } as never);
