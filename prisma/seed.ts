@@ -1,7 +1,9 @@
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaClient } from '../lib/generated/prisma/client';
 
-const adapter = new PrismaLibSql({ url: 'file:./dev.db' });
+const url = process.env.DATABASE_URL ?? 'file:./dev.db';
+const authToken = process.env.TURSO_AUTH_TOKEN;
+const adapter = new PrismaLibSql({ url, authToken });
 const db = new PrismaClient({ adapter } as never);
 
 const SPICY_ITEMS = [
